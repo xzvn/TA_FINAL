@@ -1,0 +1,238 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* =========================================================
+   ADMIN THEME FIX - JASAKAMPUS
+   Light mode tetap default Tailwind.
+   Dark mode dibuat konsisten agar warna tidak bertabrakan.
+========================================================= */
+
+body.theme-dark {
+    background: #0f172a !important;
+    color: #e5e7eb !important;
+}
+
+/* MAIN AREA */
+body.theme-dark main {
+    background: #0f172a !important;
+    color: #e5e7eb !important;
+}
+
+/* TOPBAR */
+body.theme-dark header {
+    background: #111827 !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+body.theme-dark header h1,
+body.theme-dark header h2,
+body.theme-dark header p,
+body.theme-dark header span {
+    color: #f8fafc !important;
+}
+
+/* SIDEBAR ADMIN SAAT DARK MODE: PUTIH */
+body.theme-dark #sidebar {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #e2e8f0 !important;
+}
+
+body.theme-dark #sidebar h1,
+body.theme-dark #sidebar p,
+body.theme-dark #sidebar span,
+body.theme-dark #sidebar a {
+    color: #0f172a !important;
+}
+
+body.theme-dark #sidebar a:hover {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+}
+
+body.theme-dark #sidebar a.bg-blue-600,
+body.theme-dark #sidebar .bg-blue-600 {
+    background: #2563eb !important;
+    color: #ffffff !important;
+}
+
+body.theme-dark #sidebar a.bg-blue-600 span,
+body.theme-dark #sidebar .bg-blue-600 span {
+    color: #ffffff !important;
+}
+
+body.theme-dark #sidebar button {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+}
+
+/* JUDUL HALAMAN */
+body.theme-dark h1,
+body.theme-dark h2,
+body.theme-dark h3,
+body.theme-dark h4 {
+    color: #f8fafc !important;
+}
+
+/* TEXT */
+body.theme-dark .text-slate-900,
+body.theme-dark .text-slate-800,
+body.theme-dark .text-slate-700 
+ {
+    color: #f8fafc !important;
+}
+
+body.theme-dark .text-slate-600,
+body.theme-dark .text-slate-500,
+body.theme-dark .text-slate-400 {
+    color: #cbd5e1 !important;
+}
+
+/* CARD / PANEL */
+body.theme-dark .bg-white {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.theme-dark .border-slate-200,
+body.theme-dark .border-slate-100 {
+    border-color: #334155 !important;
+}
+
+body.theme-dark .shadow-sm,
+body.theme-dark .shadow-xl {
+    box-shadow: none !important;
+}
+
+/* AREA ABU-ABU YANG BIASANYA ADA DI TABLE / CARD */
+body.theme-dark .bg-slate-50,
+body.theme-dark .bg-slate-100 {
+    background: #111827 !important;
+}
+
+body.theme-dark .bg-slate-200 {
+    background: #334155 !important;
+}
+
+/* TABLE */
+body.theme-dark table {
+    background: #1e293b !important;
+    color: #e5e7eb !important;
+}
+
+body.theme-dark thead {
+    background: #111827 !important;
+}
+
+body.theme-dark thead th {
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+body.theme-dark tbody tr {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.theme-dark tbody tr:hover {
+    background: #273449 !important;
+}
+
+body.theme-dark tbody td {
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
+}
+
+/* FORM INPUT */
+body.theme-dark input,
+body.theme-dark select,
+body.theme-dark textarea {
+    background: #111827 !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+body.theme-dark input::placeholder,
+body.theme-dark textarea::placeholder {
+    color: #94a3b8 !important;
+}
+
+/* BUTTON PUTIH DI DARK MODE */
+body.theme-dark a.bg-white,
+body.theme-dark button.bg-white {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+
+body.theme-dark a.bg-white:hover,
+body.theme-dark button.bg-white:hover {
+    background: #334155 !important;
+}
+
+/* BADGE WARNA TETAP TERLIHAT */
+body.theme-dark .bg-green-100 {
+    background: #dcfce7 !important;
+}
+
+body.theme-dark .text-green-700,
+body.theme-dark .text-green-600 {
+    color: #15803d !important;
+}
+
+body.theme-dark .bg-yellow-100 {
+    background: #fef9c3 !important;
+}
+
+body.theme-dark .text-yellow-700,
+body.theme-dark .text-yellow-600 {
+    color: #a16207 !important;
+}
+
+body.theme-dark .bg-red-100 {
+    background: #fee2e2 !important;
+}
+
+body.theme-dark .text-red-700,
+body.theme-dark .text-red-600 {
+    color: #b91c1c !important;
+}
+
+body.theme-dark .bg-blue-100 {
+    background: #dbeafe !important;
+}
+
+body.theme-dark .text-blue-700,
+body.theme-dark .text-blue-600 {
+    color: #1d4ed8 !important;
+}
+
+body.theme-dark .bg-purple-100 {
+    background: #f3e8ff !important;
+}
+
+body.theme-dark .text-purple-700,
+body.theme-dark .text-purple-600 {
+    color: #7e22ce !important;
+}
+
+/* LINK */
+body.theme-dark a {
+    color: #60a5fa;
+}
+
+/* MODAL / OVERLAY */
+body.theme-dark #sidebarOverlay {
+    background: rgba(15, 23, 42, 0.65) !important;
+}
+
+/* KHUSUS KOTAK PUTIH DALAM DARK MODE AGAR TIDAK TERLALU SILAU */
+body.theme-dark .rounded-xl,
+body.theme-dark .rounded-2xl,
+body.theme-dark .rounded-3xl {
+    border-color: #334155;
+}
+
