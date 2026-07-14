@@ -119,6 +119,7 @@
                     @if ($item->thumbnail)
                     <img src="{{ \App\Services\CloudinaryService::mediaUrl($item->thumbnail) }}"
                         alt="{{ $item->nama_jasa }}"
+                        onerror="this.onerror=null;this.src='{{ asset('images/placeholder-service.svg') }}';"
                         class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                     @else
                     <div class="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400">
@@ -183,6 +184,7 @@
                                 @if ($item->freelancer?->foto_profil)
                                 <img src="{{ \App\Services\CloudinaryService::mediaUrl($item->freelancer->foto_profil) }}"
                                     alt="Foto Freelancer"
+                                    onerror="this.onerror=null;this.src='{{ asset('images/placeholder-avatar.svg') }}';"
                                     class="w-full h-full object-cover">
                                 @else
                                 {{ strtoupper(substr($item->freelancer->nama ?? 'F', 0, 1)) }}

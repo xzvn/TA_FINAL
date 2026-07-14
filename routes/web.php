@@ -459,8 +459,8 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('transactions.index');
 
     Route::get('/transactions/{pesanan}', [TransactionMonitoringController::class, 'show'])
-    ->name('transactions.show');
-    
+        ->name('transactions.show');
+
 
     Route::get('/disputes', [AdminDisputeController::class, 'index'])
         ->name('disputes.index');
@@ -685,7 +685,7 @@ Route::middleware(['auth'])->prefix('customer')->name('customer.')->group(functi
         ->name('favorite.toggle');
 
     Route::get('/freelancer/{freelancer}', [FreelancerPublicProfileController::class, 'show'])
-    ->name('freelancer.profile');
+        ->name('freelancer.profile');
 });
 
 
@@ -751,6 +751,10 @@ Route::middleware(['auth'])->prefix('freelancer')->name('freelancer.')->group(fu
 
     Route::post('/jasa', [JasaController::class, 'store'])
         ->name('jasa.store');
+
+
+    Route::patch('/jasa/{jasa}/thumbnail', [JasaController::class, 'updateThumbnail'])
+        ->name('jasa.thumbnail.update');
 
     Route::get('/chat', [FreelancerChatController::class, 'index'])
         ->name('chat.index');

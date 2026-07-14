@@ -63,6 +63,7 @@
                     @if ($item->thumbnail)
                     <img src="{{ \App\Services\CloudinaryService::mediaUrl($item->thumbnail) }}"
                         alt="{{ $item->nama_jasa }}"
+                        onerror="this.onerror=null;this.src='{{ asset('images/placeholder-service.svg') }}';"
                         class="w-full h-full object-cover">
                     @else
                     <span class="text-slate-400 text-sm">Belum ada thumbnail</span>

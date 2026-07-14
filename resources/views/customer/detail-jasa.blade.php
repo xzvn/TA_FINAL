@@ -65,6 +65,7 @@ $ratingText = $totalReview > 0
                         @if ($jasa->thumbnail)
                         <img src="{{ \App\Services\CloudinaryService::mediaUrl($jasa->thumbnail) }}"
                             alt="{{ $jasa->nama_jasa }}"
+                            onerror="this.onerror=null;this.src='{{ asset('images/placeholder-service.svg') }}';"
                             class="w-full h-full object-cover">
                         @else
                         <div class="w-full h-full bg-gradient-to-br from-blue-100 to-slate-200 flex items-center justify-center">
@@ -238,6 +239,7 @@ $ratingText = $totalReview > 0
                         <div class="mt-4">
                             <img src="{{ \App\Services\CloudinaryService::mediaUrl($review->foto_review) }}"
                                 alt="Foto Review"
+                                onerror="this.onerror=null;this.src='{{ asset('images/placeholder-review.svg') }}';"
                                 class="w-full max-w-sm rounded-xl border border-slate-200">
                         </div>
                         @endif

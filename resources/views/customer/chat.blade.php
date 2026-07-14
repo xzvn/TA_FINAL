@@ -208,7 +208,7 @@ $lampiranChats = $chats->filter(fn($chat) => !empty($chat->lampiran));
                                 </p>
 
                                 @if ($chat->lampiran)
-                                <a {{ \App\Services\CloudinaryService::mediaUrl($chat->lampiran) }}
+                                <a href="{{ \App\Services\CloudinaryService::mediaUrl($chat->lampiran) }}"
                                     target="_blank"
                                     class="inline-block mt-3 text-xs text-blue-600 underline">
                                     Lihat Lampiran

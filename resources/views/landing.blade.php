@@ -125,6 +125,7 @@
                                 @if ($item->thumbnail)
                                 <img src="{{ \App\Services\CloudinaryService::mediaUrl($item->thumbnail) }}"
                                     alt="{{ $item->nama_jasa }}"
+                                    onerror="this.onerror=null;this.src='{{ asset('images/placeholder-service.svg') }}';"
                                     class="w-full h-full object-cover">
                                 @else
                                 <div class="w-full h-full flex items-center justify-center text-4xl bg-slate-100">

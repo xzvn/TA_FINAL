@@ -5,25 +5,53 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+use Throwable;
 
-class PasswordController extends Controller
+class PasswordResetLinkController extends Controller
 {
     /**
-     * Update the user's password.
+     * Display the password reset link request view.
      */
-    public function update(Request $request): RedirectResponse
+    public function create(): View
     {
-        $validated = $request->validateWithBag('updatePassword', [
-            'current_password' => ['required', 'current_password'],
-            'password' => ['required', Password::defaults(), 'confirmed'],
+        return view('auth.forgot-password');
+    }
+
+    /**
+     * Handle an incoming password reset link request.
+     *
+     * @throws ValidationException
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'email' => ['required', 'email'],
         ]);
 
-        $request->user()->update([
-            'password' => Hash::make($validated['password']),
-        ]);
+        try {
+            $status = Password::sendResetLink(
+                $request->only('email')
+            );
+        } catch (Throwable $exception) {
+            Log::error('Gagal mengirim email reset password melalui mailer.', [
+                'exception' => $exception,
+                'email' => $request->string('email')->toString(),
+            ]);
 
-        return back()->with('status', 'password-updated');
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors([
+                    'email' => 'Email reset password belum dapat dikirim. Periksa konfigurasi Gmail API lalu coba kembali.',
+                ]);
+        }
+
+        return $status === Password::RESET_LINK_SENT
+            ? back()->with('status', __($status))
+            : back()->withInput($request->only('email'))
+            ->withErrors(['email' => __($status)]);
     }
 }

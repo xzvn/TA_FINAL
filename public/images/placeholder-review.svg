@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600" role="img" aria-label="Foto ulasan tidak tersedia">
+  <rect width="900" height="600" fill="#f8fafc"/>
+  <rect x="235" y="130" width="430" height="300" rx="24" fill="#fff" stroke="#cbd5e1" stroke-width="10"/>
+  <circle cx="365" cy="240" r="45" fill="#c4b5fd"/>
+  <path d="M275 390l135-115 95 85 65-60 55 90H275z" fill="#a78bfa"/>
+  <text x="450" y="505" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#64748b">Foto ulasan tidak tersedia</text>
+</svg>

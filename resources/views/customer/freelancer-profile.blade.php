@@ -25,6 +25,7 @@
                             @if ($freelancer->foto_profil)
                             <img src="{{ \App\Services\CloudinaryService::mediaUrl($freelancer->foto_profil) }}"
                                 alt="Foto Freelancer"
+                                onerror="this.onerror=null;this.src='{{ asset('images/placeholder-avatar.svg') }}';"
                                 class="w-full h-full object-cover">
                             @else
                             {{ strtoupper(substr($freelancer->nama ?? $freelancer->email, 0, 1)) }}
@@ -130,6 +131,7 @@
                                 @if ($jasa->thumbnail)
                                 <img src="{{ \App\Services\CloudinaryService::mediaUrl($jasa->thumbnail) }}"
                                     alt="{{ $jasa->nama_jasa }}"
+                                    onerror="this.onerror=null;this.src='{{ asset('images/placeholder-service.svg') }}';"
                                     class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                                 @else
                                 <div class="w-full h-full flex items-center justify-center text-slate-400">

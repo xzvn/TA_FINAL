@@ -104,6 +104,7 @@
                             @if ($user->foto_profil)
                             <img src="{{ \App\Services\CloudinaryService::mediaUrl($user->foto_profil) }}"
                                 alt="Foto Profil"
+                                onerror="this.onerror=null;this.src='{{ asset('images/placeholder-avatar.svg') }}';"
                                 class="w-full h-full object-cover">
                             @else
                             {{ strtoupper(substr($user->nama ?? $user->email, 0, 1)) }}

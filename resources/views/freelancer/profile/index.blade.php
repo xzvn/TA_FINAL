@@ -52,6 +52,7 @@
                     <img id="previewAvatarImage"
                         src="{{ \App\Services\CloudinaryService::mediaUrl($user->foto_profil) }}"
                         alt="Foto Profil"
+                        onerror="this.onerror=null;this.src='{{ asset('images/placeholder-avatar.svg') }}';"
                         class="absolute inset-0 w-full h-full object-cover rounded-full">
                     @else
                     <span id="previewAvatarInitial">

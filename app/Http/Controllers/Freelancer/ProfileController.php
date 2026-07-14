@@ -47,7 +47,7 @@ class ProfileController extends Controller
         $tempFotoProfil = null;
 
         if ($request->hasFile('foto_profil')) {
-            $emailFolder = str_replace(['@', '.'], '_', strtolower($data['email']));
+            $emailFolder = str_replace(['@', '.', '+'], '_', strtolower((string) $user->email));
 
             $tempFotoProfil = CloudinaryService::uploadImage(
                 $request->file('foto_profil'),
