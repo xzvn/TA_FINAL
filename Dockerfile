@@ -9,7 +9,8 @@ COPY postcss.config.* ./
 COPY resources ./resources
 COPY public ./public
 
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm run build
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi \
+    && npm run build
 
 
 FROM composer:2 AS vendor
@@ -17,10 +18,17 @@ FROM composer:2 AS vendor
 WORKDIR /app
 
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
+
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-scripts
 
 COPY . .
-RUN composer dump-autoload --optimize
+
+RUN composer dump-autoload --optimize --no-scripts
 
 
 FROM php:8.3-cli
@@ -38,16 +46,29 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     libonig-dev \
     libcurl4-openssl-dev \
+    libxml2-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo_mysql mbstring zip gd bcmath exif opcache curl \
+    && docker-php-ext-install \
+    pdo_mysql \
+    mbstring \
+    zip \
+    gd \
+    bcmath \
+    exif \
+    opcache \
+    curl \
+    dom \
+    xml \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN printf "upload_max_filesize=20M\n\
-    post_max_size=24M\n\
-    memory_limit=256M\n\
-    max_execution_time=120\n\
-    max_input_time=120\n" \
+# Konfigurasi upload dan resource PHP
+RUN printf '%s\n' \
+    'upload_max_filesize=20M' \
+    'post_max_size=24M' \
+    'memory_limit=256M' \
+    'max_execution_time=120' \
+    'max_input_time=120' \
     > /usr/local/etc/php/conf.d/uploads.ini
 
 COPY --from=vendor /app /var/www/html
@@ -57,16 +78,14 @@ COPY docker/start.sh /usr/local/bin/start.sh
 
 RUN sed -i 's/\r$//' /usr/local/bin/start.sh \
     && chmod +x /usr/local/bin/start.sh \
-    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+    && mkdir -p \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 EXPOSE 8080
-
-RUN printf "upload_max_filesize=20M\n\
-    post_max_size=24M\n\
-    memory_limit=256M\n\
-    max_execution_time=120\n\
-    max_input_time=120\n" \
-    > /usr/local/etc/php/conf.d/uploads.ini
 
 CMD ["start.sh"]
