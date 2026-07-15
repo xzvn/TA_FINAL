@@ -43,6 +43,13 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+RUN printf "upload_max_filesize=20M\n\
+    post_max_size=24M\n\
+    memory_limit=256M\n\
+    max_execution_time=120\n\
+    max_input_time=120\n" \
+    > /usr/local/etc/php/conf.d/uploads.ini
+
 COPY --from=vendor /app /var/www/html
 COPY --from=assets /app/public/build /var/www/html/public/build
 
@@ -54,5 +61,12 @@ RUN sed -i 's/\r$//' /usr/local/bin/start.sh \
     && chmod -R 775 storage bootstrap/cache
 
 EXPOSE 8080
+
+RUN printf "upload_max_filesize=20M\n\
+    post_max_size=24M\n\
+    memory_limit=256M\n\
+    max_execution_time=120\n\
+    max_input_time=120\n" \
+    > /usr/local/etc/php/conf.d/uploads.ini
 
 CMD ["start.sh"]

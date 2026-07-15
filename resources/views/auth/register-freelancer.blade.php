@@ -174,6 +174,12 @@
                                 <p class="mt-2 text-xs text-slate-400">
                                     Format JPG, PNG, atau PDF. Maksimal 2MB.
                                 </p>
+
+                                @error('file_ktm')
+                                <p class="mt-2 text-sm font-semibold text-red-600">
+                                    {{ $message }}
+                                </p>
+                                @enderror
                             </div>
 
                             <div>
@@ -470,6 +476,40 @@
                 input.type = 'password';
                 button.textContent = '👁';
             }
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const ktmInput = document.querySelector('input[name="file_ktm"]');
+            const portfolioInput = document.querySelector(
+                'input[name="file_portofolio"]'
+            );
+
+            form?.addEventListener('submit', function(event) {
+                const ktmMaxSize = 2 * 1024 * 1024;
+                const portfolioMaxSize = 1 * 1024 * 1024;
+
+                if (
+                    ktmInput?.files[0] &&
+                    ktmInput.files[0].size > ktmMaxSize
+                ) {
+                    event.preventDefault();
+                    alert('Ukuran file KTM maksimal 2 MB.');
+                    ktmInput.focus();
+                    return;
+                }
+
+                if (
+                    portfolioInput?.files[0] &&
+                    portfolioInput.files[0].size > portfolioMaxSize
+                ) {
+                    event.preventDefault();
+                    alert('Ukuran file portofolio maksimal 1 MB.');
+                    portfolioInput.focus();
+                }
+            });
         });
     </script>
 </body>

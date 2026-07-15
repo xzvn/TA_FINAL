@@ -25,56 +25,123 @@ class FreelancerRegisterController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-            session()->forget('freelancer_register_otp');
+        session()->forget('freelancer_register_otp');
 
-        $data = $request->validate([
-            'nama' => ['required', 'string', 'max:255'],
-            'alamat' => ['required', 'string'],
-            'email_kampus' => [
-                'required',
-                'string',
-                'lowercase',
-                'email',
-                'max:255',
-                'unique:users,email',
-                'unique:verifikasi_freelancers,email_kampus',
-                function ($attribute, $value, $fail) {
-                    $domain = strtolower(substr(strrchr($value, '@'), 1));
+        $data = $request->validate(
+            [
+                'nama' => ['required', 'string', 'max:255'],
+                'alamat' => ['required', 'string'],
 
-                    $blockedDomains = [
-                        'gmail.com',
-                        'yahoo.com',
-                        'ymail.com',
-                        'rocketmail.com',
-                        'outlook.com',
-                        'hotmail.com',
-                        'live.com',
-                        'icloud.com',
-                        'me.com',
-                        'proton.me',
-                        'protonmail.com',
-                        'aol.com',
-                        'mail.com',
-                        'zoho.com',
-                        'gmx.com',
-                    ];
+                'email_kampus' => [
+                    'required',
+                    'string',
+                    'lowercase',
+                    'email',
+                    'max:255',
+                    'unique:users,email',
+                    'unique:verifikasi_freelancers,email_kampus',
+                    function ($attribute, $value, $fail) {
+                        $domain = strtolower(substr(strrchr($value, '@'), 1));
 
-                    if (in_array($domain, $blockedDomains)) {
-                        $fail('Gunakan email kampus atau email institusi pendidikan, bukan email pribadi.');
-                    }
-                },
+                        $blockedDomains = [
+                            'gmail.com',
+                            'yahoo.com',
+                            'ymail.com',
+                            'rocketmail.com',
+                            'outlook.com',
+                            'hotmail.com',
+                            'live.com',
+                            'icloud.com',
+                            'me.com',
+                            'proton.me',
+                            'protonmail.com',
+                            'aol.com',
+                            'mail.com',
+                            'zoho.com',
+                            'gmx.com',
+                        ];
+
+                        if (in_array($domain, $blockedDomains)) {
+                            $fail(
+                                'Gunakan email kampus atau email institusi pendidikan, bukan email pribadi.'
+                            );
+                        }
+                    },
+                ],
+
+                'universitas' => ['required', 'string', 'max:255'],
+                'program_studi' => ['nullable', 'string', 'max:255'],
+
+                'file_ktm' => [
+                    'required',
+                    'file',
+                    'mimes:jpg,jpeg,png,pdf',
+                    'max:2048',
+                ],
+
+                'file_portofolio' => [
+                    'required',
+                    'file',
+                    'mimes:jpg,jpeg,png,webp,pdf,doc,docx,ppt,pptx',
+                    'max:1024',
+                ],
+
+                'password' => [
+                    'required',
+                    'confirmed',
+                    Rules\Password::defaults(),
+                ],
             ],
-            'universitas' => ['required', 'string', 'max:255'],
-            'program_studi' => ['nullable', 'string', 'max:255'],
-            'file_ktm' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
-            'file_portofolio' => [
-                'required',
-                'file',
-                'mimes:jpg,jpeg,png,webp,pdf,doc,docx,ppt,pptx',
-                'max:1024',
-            ],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+            [
+                'nama.required' =>
+                'Nama lengkap wajib diisi.',
+
+                'alamat.required' =>
+                'Alamat domisili wajib diisi.',
+
+                'email_kampus.required' =>
+                'Email kampus wajib diisi.',
+
+                'email_kampus.email' =>
+                'Format email kampus tidak valid.',
+
+                'email_kampus.unique' =>
+                'Email kampus tersebut sudah pernah digunakan.',
+
+                'universitas.required' =>
+                'Nama kampus atau universitas wajib diisi.',
+
+                'file_ktm.required' =>
+                'File KTM wajib diunggah.',
+
+                'file_ktm.file' =>
+                'KTM yang diunggah harus berupa file.',
+
+                'file_ktm.mimes' =>
+                'KTM harus berformat JPG, JPEG, PNG, atau PDF.',
+
+                'file_ktm.max' =>
+                'Ukuran file KTM maksimal 2 MB.',
+
+                'file_portofolio.required' =>
+                'File portofolio wajib diunggah.',
+
+                'file_portofolio.file' =>
+                'Portofolio yang diunggah harus berupa file.',
+
+                'file_portofolio.mimes' =>
+                'Portofolio harus berformat JPG, JPEG, PNG, WEBP, PDF, DOC, DOCX, PPT, atau PPTX.',
+
+                'file_portofolio.max' =>
+                'Ukuran file portofolio maksimal 1 MB.',
+
+                'password.required' =>
+                'Password wajib diisi.',
+
+                'password.confirmed' =>
+                'Konfirmasi password tidak sama dengan password.',
+            ]
+        );
 
         $emailFolder = str_replace(['@', '.'], '_', strtolower($data['email_kampus']));
 
