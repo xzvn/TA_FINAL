@@ -193,7 +193,7 @@
                                     class="block w-full text-sm text-slate-600 border border-slate-300 rounded-xl cursor-pointer bg-white focus:outline-none file:mr-4 file:py-3 file:px-4 file:border-0 file:bg-blue-50 file:text-blue-700 file:font-bold"
                                     required>
                                 <p class="mt-2 text-xs text-slate-400">
-                                    JPG, PNG, WEBP, PDF, DOC, DOCX, PPT, PPTX. Maksimal 1MB.
+                                    JPG, PNG, WEBP, PDF, DOC, DOCX, PPT, PPTX. Maksimal 5MB.
                                 </p>
                             </div>
 
@@ -489,7 +489,7 @@
 
             form?.addEventListener('submit', function(event) {
                 const ktmMaxSize = 2 * 1024 * 1024;
-                const portfolioMaxSize = 1 * 1024 * 1024;
+                const portfolioMaxSize = 5 * 1024 * 1024;
 
                 if (
                     ktmInput?.files[0] &&
@@ -506,7 +506,7 @@
                     portfolioInput.files[0].size > portfolioMaxSize
                 ) {
                     event.preventDefault();
-                    alert('Ukuran file portofolio maksimal 1 MB.');
+                    alert('Ukuran file portofolio maksimal 5 MB.');
                     portfolioInput.focus();
                 }
             });

@@ -83,7 +83,7 @@ class FreelancerRegisterController extends Controller
                     'required',
                     'file',
                     'mimes:jpg,jpeg,png,webp,pdf,doc,docx,ppt,pptx',
-                    'max:1024',
+                    'max:5120',
                 ],
 
                 'password' => [

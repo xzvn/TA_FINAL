@@ -22,4 +22,16 @@ ls -la public || true
 ls -la public/build || true
 ls -la public/build/assets || true
 
+echo "=== PHP Configuration ==="
+php --ini
+
+echo "upload_max_filesize:"
+php -r "echo ini_get('upload_max_filesize') . PHP_EOL;"
+
+echo "post_max_size:"
+php -r "echo ini_get('post_max_size') . PHP_EOL;"
+
+echo "memory_limit:"
+php -r "echo ini_get('memory_limit') . PHP_EOL;"
+
 exec php artisan serve --host=0.0.0.0 --port=${PORT:-8080}
