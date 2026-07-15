@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
 
-class PasswordResetLinkController extends Controller
+class PasswordController extends Controller
 {
     /**
      * Display the password reset link request view.
