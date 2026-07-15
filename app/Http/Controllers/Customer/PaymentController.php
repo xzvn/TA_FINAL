@@ -5,128 +5,231 @@ namespace App\Http\Controllers\Customer;
 use App\Http\Controllers\Controller;
 use App\Models\Pembayaran;
 use App\Models\Pesanan;
-use App\Services\NotifikasiService;
+use App\Services\MidtransPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
-use Midtrans\Config;
-use Midtrans\Notification;
-use Midtrans\Snap;
 use Illuminate\Support\Facades\Log;
-use Midtrans\Transaction;
+use Illuminate\View\View;
 use Throwable;
-
 
 class PaymentController extends Controller
 {
-    private function authorizeCustomer(Request $request, Pesanan $pesanan): void
-    {
+    public function __construct(
+        private readonly MidtransPaymentService $midtrans
+    ) {}
+
+    private function authorizeCustomer(
+        Request $request,
+        Pesanan $pesanan
+    ): void {
         $user = $request->user();
 
-        abort_if(! $user || $user->role !== 'customer', 403);
-        abort_if($pesanan->id_customer !== $user->id, 403);
+        abort_if(
+            ! $user ||
+                $user->role !== 'customer',
+            403
+        );
+
+        abort_if(
+            $pesanan->id_customer !== $user->id,
+            403
+        );
     }
 
-    public function index(Request $request): View
-    {
+    public function index(
+        Request $request
+    ): View {
         $user = $request->user();
 
-        abort_if(! $user || $user->role !== 'customer', 403);
+        abort_if(
+            ! $user ||
+                $user->role !== 'customer',
+            403
+        );
 
-        $pembayarans = Pembayaran::with(['pesanan.jasa.freelancer'])
-            ->whereHas('pesanan', function ($query) use ($user) {
-                $query->where('id_customer', $user->id);
-            })
+        $pembayarans = Pembayaran::with([
+            'pesanan.jasa.freelancer',
+        ])
+            ->whereHas(
+                'pesanan',
+                function ($query) use ($user) {
+                    $query->where(
+                        'id_customer',
+                        $user->id
+                    );
+                }
+            )
             ->latest()
             ->get();
 
-        return view('customer.payment.index', compact('pembayarans'));
+        return view(
+            'customer.payment.index',
+            compact('pembayarans')
+        );
     }
 
-    private function setupMidtrans(): void
-    {
-        Config::$serverKey = config('services.midtrans.server_key');
-        Config::$isProduction = filter_var(config('services.midtrans.is_production'), FILTER_VALIDATE_BOOLEAN);
-        Config::$isSanitized = true;
-        Config::$is3ds = true;
+    public function show(
+        Request $request,
+        Pesanan $pesanan
+    ): View {
+        $this->authorizeCustomer(
+            $request,
+            $pesanan
+        );
+
+        $pesanan->load([
+            'jasa.freelancer',
+            'pembayaran',
+        ]);
+
+        return view(
+            'customer.payment.show',
+            compact('pesanan')
+        );
     }
 
-    public function show(Request $request, Pesanan $pesanan): View
-    {
-        $this->authorizeCustomer($request, $pesanan);
-
-        $pesanan->load('jasa.freelancer', 'pembayaran');
-
-        return view('customer.payment.show', compact('pesanan'));
-    }
-
-    public function pay(Request $request, Pesanan $pesanan): RedirectResponse
-    {
-        $this->authorizeCustomer($request, $pesanan);
+    public function pay(
+        Request $request,
+        Pesanan $pesanan
+    ): RedirectResponse {
+        $this->authorizeCustomer(
+            $request,
+            $pesanan
+        );
 
         abort_if(
-            $pesanan->status_pesanan !== 'menunggu_pembayaran',
+            $pesanan->status_pesanan !==
+                'menunggu_pembayaran',
             403,
-            'Pesanan ini sudah dibayar atau tidak dapat dibayar.'
+            'Pesanan ini tidak dapat dibayar.'
         );
 
-        $this->setupMidtrans();
+        $pesanan->load([
+            'customer',
+            'jasa',
+            'pembayaran',
+        ]);
 
-        $pesanan->load('jasa.freelancer', 'customer');
+        $pembayaran = $pesanan->pembayaran;
 
-        $orderId = 'JSK-' . $pesanan->id . '-' . time();
-        $grossAmount = (int) round($pesanan->total_harga);
+        /*
+         * Satu pesanan hanya memiliki satu
+         * transaksi Midtrans.
+         */
+        if (
+            $pembayaran &&
+            $pembayaran->snap_token
+        ) {
+            return redirect()
+                ->route(
+                    'customer.payment.show',
+                    $pesanan->id
+                )
+                ->with(
+                    'info',
+                    'Token pembayaran sudah tersedia.'
+                );
+        }
 
-        $params = [
-            'transaction_details' => [
-                'order_id' => $orderId,
-                'gross_amount' => $grossAmount,
-            ],
-            'customer_details' => [
-                'first_name' => $pesanan->customer->nama ?? 'Customer',
-                'email' => $pesanan->customer->email ?? null,
-                'phone' => $pesanan->customer->no_hp ?? null,
-            ],
-            'item_details' => [
-                [
-                    'id' => 'JASA-' . $pesanan->jasa->id,
-                    'price' => $grossAmount,
-                    'quantity' => 1,
-                    'name' => $pesanan->jasa->nama_jasa ?? 'Pembayaran Jasa',
-                ],
-            ],
-        ];
+        $grossAmount = (int) round(
+            (float) $pesanan->total_harga
+        );
 
-        $snapToken = Snap::getSnapToken($params);
+        if (! $pembayaran) {
+            $pembayaran = Pembayaran::create([
+                'id_pesanan' =>
+                $pesanan->id,
 
-        Pembayaran::updateOrCreate(
-            [
-                'id_pesanan' => $pesanan->id,
-            ],
-            [
-                'order_id' => $orderId,
-                'transaction_id' => null,
-                'payment_type' => 'midtrans',
-                'gross_amount' => $grossAmount,
-                'transaction_status' => 'pending',
-                'fraud_status' => null,
-                'status_escrow' => 'belum_ditahan',
+                'order_id' =>
+                $this->midtrans
+                    ->generateOrderId($pesanan),
+
+                'transaction_id' =>
+                null,
+
+                'payment_type' =>
+                'midtrans',
+
+                'gross_amount' =>
+                $grossAmount,
+
+                'transaction_status' =>
+                'pending',
+
+                'fraud_status' =>
+                null,
+
+                'status_escrow' =>
+                'belum_ditahan',
+
+                'snap_token' =>
+                null,
+
+                'tanggal_bayar' =>
+                null,
+
+                'expires_at' =>
+                now()->addHours(24),
+            ]);
+        }
+
+        try {
+            $snapToken = $this->midtrans
+                ->createSnapToken(
+                    $pesanan,
+                    $pembayaran
+                );
+
+            $pembayaran->update([
                 'snap_token' => $snapToken,
-                'tanggal_bayar' => null,
-            ]
-        );
+            ]);
+        } catch (Throwable $exception) {
+            Log::error(
+                'Gagal membuat Snap Token.',
+                [
+                    'pesanan_id' =>
+                    $pesanan->id,
+
+                    'order_id' =>
+                    $pembayaran->order_id,
+
+                    'message' =>
+                    $exception->getMessage(),
+                ]
+            );
+
+            return back()->withErrors([
+                'payment' =>
+                'Pembayaran belum dapat dibuat. Silakan coba kembali.',
+            ]);
+        }
 
         return redirect()
-            ->route('customer.payment.show', $pesanan->id)
-            ->with('success', 'Silakan lanjutkan pembayaran melalui Midtrans.');
+            ->route(
+                'customer.payment.show',
+                $pesanan->id
+            )
+            ->with(
+                'success',
+                'Pembayaran Midtrans berhasil dibuat.'
+            );
     }
 
+    /**
+     * Dipanggil browser setelah Snap selesai.
+     *
+     * Data status dari browser tidak dipercaya.
+     * Backend mengambil status langsung ke Midtrans.
+     */
     public function finish(
         Request $request,
         Pesanan $pesanan
     ): JsonResponse {
-        $this->authorizeCustomer($request, $pesanan);
+        $this->authorizeCustomer(
+            $request,
+            $pesanan
+        );
 
         $pesanan->load('pembayaran');
 
@@ -138,97 +241,78 @@ class PaymentController extends Controller
             'Data pembayaran tidak ditemukan.'
         );
 
-        $this->setupMidtrans();
-
         try {
-            /*
-         * Status tidak diambil dari data JavaScript/browser.
-         * Server meminta status langsung kepada Midtrans.
-         */
-            $status = Transaction::status(
-                $pembayaran->order_id
-            );
-
-            $receivedOrderId = (string) (
-                $status->order_id ?? ''
-            );
-
-            $receivedAmount = (int) round(
-                (float) ($status->gross_amount ?? 0)
-            );
-
-            $expectedAmount = (int) round(
-                (float) $pembayaran->gross_amount
-            );
-
-            /*
-         * Pastikan transaksi Midtrans benar-benar
-         * milik pembayaran yang sedang diproses.
-         */
-            if (
-                $receivedOrderId !==
-                (string) $pembayaran->order_id ||
-                $receivedAmount !== $expectedAmount
-            ) {
-                throw new \RuntimeException(
-                    'Data transaksi Midtrans tidak cocok dengan pembayaran lokal.'
-                );
-            }
-
-            $transactionStatus = (string) (
-                $status->transaction_status ?? 'pending'
-            );
-
-            $fraudStatus = isset($status->fraud_status)
-                ? (string) $status->fraud_status
-                : null;
-
-            $pembayaran->update([
-                'transaction_id' =>
-                $status->transaction_id ??
-                    $pembayaran->transaction_id,
-
-                'payment_type' =>
-                $status->payment_type ??
-                    $pembayaran->payment_type,
-
-                'transaction_status' =>
-                $transactionStatus,
-
-                'fraud_status' =>
-                $fraudStatus,
-            ]);
-
-            $paymentSuccessful =
-                $transactionStatus === 'settlement' ||
-                (
-                    $transactionStatus === 'capture' &&
-                    $fraudStatus === 'accept'
+            $gatewayStatus =
+                $this->midtrans->getStatus(
+                    $pembayaran->order_id
                 );
 
-            if ($paymentSuccessful) {
-                $this->markAsPaid($pesanan);
-            }
+            $result =
+                $this->midtrans
+                ->syncVerifiedStatus(
+                    $pembayaran,
+                    $gatewayStatus
+                );
 
             return response()->json([
                 'success' => true,
+
                 'payment_confirmed' =>
-                $paymentSuccessful,
+                $result['successful'],
 
                 'transaction_status' =>
-                $transactionStatus,
+                $result['transaction_status'],
 
-                'message' => $paymentSuccessful
+                'message' =>
+                $result['successful']
                     ? 'Pembayaran berhasil diverifikasi.'
-                    : 'Pembayaran belum selesai atau masih diproses.',
+                    : 'Pembayaran belum berhasil atau masih diproses.',
             ]);
         } catch (Throwable $exception) {
             Log::error(
-                'Gagal memverifikasi pembayaran Midtrans.',
+                'Gagal menyegarkan status pembayaran.',
                 [
-                    'pesanan_id' => $pesanan->id,
-                    'order_id' => $pembayaran->order_id,
-                    'message' => $exception->getMessage(),
+                    'pesanan_id' =>
+                    $pesanan->id,
+
+                    'order_id' =>
+                    $pembayaran->order_id,
+
+                    'message' =>
+                    $exception->getMessage(),
+                ]
+            );
+
+            return response()->json(
+                [
+                    'success' => false,
+
+                    'message' =>
+                    'Status pembayaran belum dapat diverifikasi. Status akan diperbarui otomatis melalui Midtrans.',
+                ],
+                502
+            );
+        }
+    }
+
+    /**
+     * Endpoint publik untuk server Midtrans.
+     */
+    public function notification(
+        Request $request
+    ): JsonResponse {
+        $payload = $request->json()->all();
+
+        if (
+            ! $this->midtrans
+                ->verifyWebhookSignature($payload)
+        ) {
+            Log::warning(
+                'Webhook Midtrans dengan signature tidak valid.',
+                [
+                    'order_id' =>
+                    $payload['order_id']
+                        ?? null,
                 ]
             );
 
@@ -236,131 +320,160 @@ class PaymentController extends Controller
                 [
                     'success' => false,
                     'message' =>
-                    'Status pembayaran belum dapat diverifikasi. Silakan periksa kembali beberapa saat lagi.',
+                    'Signature tidak valid.',
                 ],
-                502
+                403
+            );
+        }
+
+        $orderId = (string) (
+            $payload['order_id'] ?? ''
+        );
+
+        $pembayaran = Pembayaran::where(
+            'order_id',
+            $orderId
+        )->first();
+
+        if (! $pembayaran) {
+            Log::warning(
+                'Webhook untuk order tidak dikenal.',
+                [
+                    'order_id' => $orderId,
+                ]
+            );
+
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' =>
+                    'Pembayaran tidak ditemukan.',
+                ],
+                404
+            );
+        }
+
+        try {
+            /*
+             * Challenge verification:
+             * status diambil langsung dari Midtrans,
+             * bukan dipercaya dari payload webhook.
+             */
+            $gatewayStatus =
+                $this->midtrans
+                ->getStatus($orderId);
+
+            $result =
+                $this->midtrans
+                ->syncVerifiedStatus(
+                    $pembayaran,
+                    $gatewayStatus
+                );
+
+            return response()->json([
+                'success' => true,
+
+                'transaction_status' =>
+                $result['transaction_status'],
+
+                'message' =>
+                'Notifikasi berhasil diproses.',
+            ]);
+        } catch (Throwable $exception) {
+            Log::error(
+                'Webhook Midtrans gagal diproses.',
+                [
+                    'order_id' =>
+                    $orderId,
+
+                    'message' =>
+                    $exception->getMessage(),
+                ]
+            );
+
+            /*
+             * Respons non-2xx memungkinkan
+             * Midtrans mengetahui proses gagal.
+             */
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' =>
+                    'Notifikasi gagal diproses.',
+                ],
+                500
             );
         }
     }
 
-    public function notification(Request $request): JsonResponse
-    {
-        $this->setupMidtrans();
-
-        $notification = new Notification();
-
-        $orderId = $notification->order_id;
-        $transactionStatus = $notification->transaction_status;
-        $fraudStatus = $notification->fraud_status ?? null;
-
-        $pembayaran = Pembayaran::where('order_id', $orderId)->first();
-
-        if (! $pembayaran) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Pembayaran tidak ditemukan.',
-            ], 404);
-        }
-
-        $pembayaran->update([
-            'transaction_id' => $notification->transaction_id ?? $pembayaran->transaction_id,
-            'payment_type' => $notification->payment_type ?? $pembayaran->payment_type,
-            'transaction_status' => $transactionStatus,
-            'fraud_status' => $fraudStatus,
-        ]);
-
-        $pesanan = Pesanan::find($pembayaran->id_pesanan);
-
-        if ($pesanan && in_array($transactionStatus, ['settlement', 'capture'])) {
-            if ($transactionStatus === 'capture' && $fraudStatus !== 'accept') {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Pembayaran capture tetapi fraud belum accept.',
-                ]);
-            }
-
-            $this->markAsPaid($pesanan);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Notifikasi Midtrans diterima.',
-        ]);
-    }
-
-    private function markAsPaid(Pesanan $pesanan): void
-    {
-        $pesanan->load('pembayaran');
-
-        if (! $pesanan->pembayaran) {
-            return;
-        }
-
-        if ($pesanan->status_pesanan === 'dibayar') {
-            return;
-        }
-
-        $pesanan->pembayaran->update([
-            'status_escrow' => 'ditahan',
-
-            'tanggal_bayar' =>
-            $pesanan->pembayaran->tanggal_bayar
-                ?? now(),
-        ]);
-
-        $pesanan->update([
-            'status_pesanan' => 'dibayar',
-        ]);
-
-        NotifikasiService::kirim(
-            $pesanan->id_freelancer,
-            'Pesanan Baru Sudah Dibayar',
-            'Customer telah melakukan pembayaran untuk pesanan #' . $pesanan->id . '. Silakan mulai proses pekerjaan.',
-            'order',
-            route('freelancer.pesanan.show', $pesanan->id, false)
+    /**
+     * Hanya untuk pengembangan lokal.
+     */
+    public function simulateSuccess(
+        Request $request,
+        Pesanan $pesanan
+    ): RedirectResponse {
+        abort_unless(
+            app()->environment([
+                'local',
+                'testing',
+            ]),
+            404
         );
 
-        NotifikasiService::kirim(
-            $pesanan->id_customer,
-            'Pembayaran Berhasil',
-            'Pembayaran untuk pesanan #' . $pesanan->id . ' berhasil. Dana ditahan sementara oleh sistem escrow.',
-            'pembayaran',
-            route('customer.order.show', $pesanan->id, false)
+        $this->authorizeCustomer(
+            $request,
+            $pesanan
         );
-    }
-    public function simulateSuccess(Request $request, Pesanan $pesanan): RedirectResponse
-    {
-        $user = $request->user();
-
-        abort_if(! $user || $user->role !== 'customer', 403);
-        abort_if($pesanan->id_customer !== $user->id, 403);
-
-        // Pengaman: simulasi hanya boleh di local / sandbox
-        abort_if(app()->environment('production'), 403);
 
         $pembayaran = $pesanan->pembayaran;
 
         if (! $pembayaran) {
             return back()->withErrors([
-                'payment' => 'Data pembayaran belum dibuat. Klik tombol Buat Pembayaran Midtrans dulu.',
+                'payment' =>
+                'Data pembayaran belum dibuat.',
             ]);
         }
 
         $pembayaran->update([
-            'transaction_id' => 'SIM-' . now()->format('YmdHis'),
-            'payment_type' => 'simulation',
-            'transaction_status' => 'settlement',
-            'fraud_status' => 'accept',
-            'status_escrow' => 'ditahan',
-            'tanggal_bayar' => now(),
+            'transaction_id' =>
+            'SIM-' .
+                now()->format('YmdHis'),
+
+            'payment_type' =>
+            'simulation',
+
+            'transaction_status' =>
+            'settlement',
+
+            'fraud_status' =>
+            'accept',
+
+            'status_escrow' =>
+            'ditahan',
+
+            'tanggal_bayar' =>
+            now(),
         ]);
 
-        $pesanan->update([
-            'status_pesanan' => 'dibayar',
-        ]);
+        if (
+            $pesanan->status_pesanan ===
+            'menunggu_pembayaran'
+        ) {
+            $pesanan->update([
+                'status_pesanan' =>
+                'dibayar',
+            ]);
+        }
 
         return redirect()
-            ->route('customer.order.show', $pesanan->id)
-            ->with('success', 'Pembayaran berhasil disimulasikan. Pesanan sekarang sudah masuk ke freelancer.');
+            ->route(
+                'customer.order.show',
+                $pesanan->id
+            )
+            ->with(
+                'success',
+                'Pembayaran lokal berhasil disimulasikan.'
+            );
     }
 }

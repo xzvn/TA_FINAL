@@ -2,12 +2,16 @@
 
 use App\Models\User;
 
-test('confirm password screen can be rendered', function () {
+test('confirm password route redirects to dashboard', function () {
     $user = User::factory()->create();
 
-    $response = $this->actingAs($user)->get('/confirm-password');
+    $response = $this
+        ->actingAs($user)
+        ->get('/confirm-password');
 
-    $response->assertStatus(200);
+    $response->assertRedirect(
+        route('dashboard')
+    );
 });
 
 test('password can be confirmed', function () {

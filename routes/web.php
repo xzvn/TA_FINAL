@@ -44,6 +44,12 @@ use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\Customer\FreelancerPublicProfileController;
 
 
+
+Route::post(
+    '/midtrans/notification',
+    [PaymentController::class, 'notification']
+)->name('midtrans.notification');
+
 Route::get('/', function () {
     $jasaLanding = \App\Models\Jasa::with('freelancer')
         ->withAvg('reviews as rating_rata_rata', 'rating')
@@ -675,8 +681,12 @@ Route::middleware(['auth'])->prefix('customer')->name('customer.')->group(functi
     Route::post('/profile/verify-pin', [CustomerProfileController::class, 'verify'])
         ->name('profile.verify');
 
-    Route::post('/order/{pesanan}/payment/simulate-success', [PaymentController::class, 'simulateSuccess'])
-        ->name('payment.simulate-success');
+    if (app()->environment(['local', 'testing'])) {
+        Route::post(
+            '/order/{pesanan}/payment/simulate-success',
+            [PaymentController::class, 'simulateSuccess']
+        )->name('payment.simulate-success');
+    }
 
     Route::get('/favorites', [FavoriteController::class, 'index'])
         ->name('favorite.index');
