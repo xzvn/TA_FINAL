@@ -18,11 +18,17 @@ use Illuminate\Database\Eloquent\Model;
     'snap_token',
     'tanggal_bayar',
     'tanggal_release',
+    'expires_at',
+    'gateway_updated_at',
+    'status_message',
 ])]
 class Pembayaran extends Model
 {
     protected $casts = [
         'tanggal_bayar' => 'datetime',
+        'tanggal_release' => 'datetime',
+        'expires_at' => 'datetime',
+        'gateway_updated_at' => 'datetime',
         'gross_amount' => 'decimal:2',
     ];
     use HasFactory;

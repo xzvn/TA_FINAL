@@ -2,84 +2,153 @@
 
 @section('title', 'Payment - JasaKampus')
 
+@php
+    $payment = $pesanan->pembayaran;
+
+    $midtransIsProduction = filter_var(
+        config('services.midtrans.is_production', false),
+        FILTER_VALIDATE_BOOLEAN
+    );
+
+    $paymentExpiresAt = optional($payment)->expires_at
+        ? \Illuminate\Support\Carbon::parse($payment->expires_at)
+        : $pesanan->created_at->copy()->addHours(24);
+
+    $isWaitingPayment =
+        $pesanan->status_pesanan === 'menunggu_pembayaran';
+
+    $isPaid = in_array(
+        $pesanan->status_pesanan,
+        [
+            'dibayar',
+            'diproses',
+            'menunggu_approve',
+            'revisi',
+            'selesai',
+        ],
+        true
+    );
+@endphp
+
 @section('content')
 <section class="px-6 py-6">
-    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 mb-6 text-center">
-        <p class="text-xs font-bold text-slate-500 uppercase">
-            Selesaikan pembayaran sebelum waktu habis
-        </p>
 
-        @if ($pesanan->status_pesanan === 'menunggu_pembayaran')
-        <h1 id="payment-countdown" class="text-4xl font-bold text-blue-600 mt-2">
-            23:59:54
-        </h1>
+    {{-- HEADER STATUS --}}
+    <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+        @if ($isWaitingPayment)
+            <p class="text-xs font-bold uppercase text-slate-500">
+                Selesaikan pembayaran sebelum waktu habis
+            </p>
 
-        <span class="inline-block mt-3 px-4 py-1 bg-red-100 text-red-600 rounded-full text-xs font-bold">
-            Batas waktu pembayaran 24 jam
-        </span>
+            <h1
+                id="payment-countdown"
+                data-expires-at="{{ $paymentExpiresAt->toIso8601String() }}"
+                class="mt-2 text-4xl font-bold text-blue-600">
+                --:--:--
+            </h1>
+
+            <span class="mt-3 inline-block rounded-full bg-red-100 px-4 py-1 text-xs font-bold text-red-600">
+                Batas waktu pembayaran 24 jam
+            </span>
+        @elseif ($isPaid)
+            <h1 class="mt-2 text-4xl font-bold text-green-600">
+                Payment Successful
+            </h1>
+
+            <span class="mt-3 inline-block rounded-full bg-green-100 px-4 py-1 text-xs font-bold text-green-600">
+                Dana berhasil ditahan oleh escrow
+            </span>
         @else
-        <h1 class="text-4xl font-bold text-green-600 mt-2">
-            Payment Successful
-        </h1>
+            <h1 class="mt-2 text-3xl font-bold text-slate-700">
+                Pembayaran Tidak Aktif
+            </h1>
 
-        <span class="inline-block mt-3 px-4 py-1 bg-green-100 text-green-600 rounded-full text-xs font-bold">
-            Dana berhasil ditahan oleh escrow
-        </span>
+            <span class="mt-3 inline-block rounded-full bg-slate-100 px-4 py-1 text-xs font-bold text-slate-600">
+                Status pesanan: {{ str_replace('_', ' ', $pesanan->status_pesanan) }}
+            </span>
         @endif
     </div>
 
+    {{-- FLASH MESSAGE --}}
     @if (session('success'))
-    <div class="mb-6 px-5 py-4 bg-green-100 text-green-700 rounded-xl border border-green-200">
-        {{ session('success') }}
-    </div>
+        <div class="mb-6 rounded-xl border border-green-200 bg-green-100 px-5 py-4 text-green-700">
+            {{ session('success') }}
+        </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    @if (session('info'))
+        <div class="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 text-blue-700">
+            {{ session('info') }}
+        </div>
+    @endif
 
-        {{-- LEFT: ORDER SUMMARY --}}
-        <aside class="lg:col-span-4 space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+    @if ($errors->has('payment'))
+        <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-red-700">
+            {{ $errors->first('payment') }}
+        </div>
+    @endif
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+
+        {{-- RINGKASAN PESANAN --}}
+        <aside class="space-y-6 lg:col-span-4">
+            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 class="font-bold text-slate-900">
                     Ringkasan Pesanan
                 </h2>
 
                 <div class="mt-5 space-y-4 text-sm">
                     <div class="flex items-start justify-between gap-4">
-                        <span class="text-slate-500">Nomor Pesanan</span>
-                        <span class="font-bold text-slate-900 text-right">
+                        <span class="text-slate-500">
+                            Nomor Pesanan
+                        </span>
+
+                        <span class="text-right font-bold text-slate-900">
                             #{{ $pesanan->id }}
                         </span>
                     </div>
 
                     <div class="flex items-start justify-between gap-4">
-                        <span class="text-slate-500">Freelancer</span>
-                        <span class="font-semibold text-slate-900 text-right">
+                        <span class="text-slate-500">
+                            Freelancer
+                        </span>
+
+                        <span class="text-right font-semibold text-slate-900">
                             {{ $pesanan->jasa->freelancer->nama ?? '-' }}
                         </span>
                     </div>
 
                     <div class="flex items-start justify-between gap-4">
-                        <span class="text-slate-500">Jasa</span>
-                        <span class="font-semibold text-slate-900 text-right max-w-[190px]">
+                        <span class="text-slate-500">
+                            Jasa
+                        </span>
+
+                        <span class="max-w-[190px] text-right font-semibold text-slate-900">
                             {{ $pesanan->jasa->nama_jasa }}
                         </span>
                     </div>
 
-                    <div class="border-t border-slate-100 pt-4 flex items-center justify-between">
-                        <span class="text-slate-500">Harga Jasa</span>
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                        <span class="text-slate-500">
+                            Harga Jasa
+                        </span>
+
                         <span class="font-semibold text-slate-900">
                             Rp {{ number_format($pesanan->total_harga, 0, ',', '.') }}
                         </span>
                     </div>
 
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-500">Biaya Layanan</span>
+                        <span class="text-slate-500">
+                            Biaya Layanan
+                        </span>
+
                         <span class="font-semibold text-slate-900">
                             Rp 0
                         </span>
                     </div>
 
-                    <div class="border-t border-slate-100 pt-4 flex items-center justify-between">
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
                         <span class="font-bold text-blue-700">
                             Total Tagihan
                         </span>
@@ -91,296 +160,555 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                @if ($pesanan->status_pesanan === 'menunggu_pembayaran' && ! optional($pesanan->pembayaran)->snap_token)
-                <form method="POST"
-                    action="{{ route('customer.payment.pay', $pesanan->id) }}">
-                    @csrf
+            {{-- ACTION PAYMENT --}}
+            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
 
-                    <button type="submit"
-                        class="w-full px-5 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">
-                        Buat Pembayaran Midtrans
+                @if ($isWaitingPayment && ! optional($payment)->snap_token)
+                    <form
+                        method="POST"
+                        action="{{ route('customer.payment.pay', $pesanan->id) }}">
+                        @csrf
+
+                        <button
+                            type="submit"
+                            class="w-full rounded-xl bg-blue-600 px-5 py-3 font-bold text-white hover:bg-blue-700">
+                            Buat Pembayaran Midtrans
+                        </button>
+                    </form>
+
+                    <a
+                        href="{{ url('/dashboard') }}"
+                        class="mt-3 block w-full rounded-xl bg-slate-100 px-5 py-3 text-center font-bold text-slate-700 hover:bg-slate-200">
+                        Kembali ke Dashboard
+                    </a>
+
+                @elseif ($isWaitingPayment && optional($payment)->snap_token)
+                    <button
+                        type="button"
+                        id="pay-button"
+                        class="w-full rounded-xl bg-green-600 px-5 py-3 font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        Bayar Sekarang dengan Midtrans
                     </button>
-                </form>
 
+                    @if (app()->environment(['local', 'testing']))
+                        <form
+                            action="{{ route('customer.payment.simulate-success', $pesanan->id) }}"
+                            method="POST"
+                            class="mt-4">
+                            @csrf
 
+                            <button
+                                type="submit"
+                                onclick="return confirm('Simulasikan pembayaran berhasil? Fitur ini hanya untuk testing lokal.')"
+                                class="w-full rounded-xl bg-amber-500 px-5 py-3 font-bold text-white hover:bg-amber-600">
+                                Simulasi Pembayaran Berhasil
+                            </button>
+                        </form>
+                    @endif
 
-                <a href="{{ url('/dashboard') }}"
-                    class="block text-center mt-3 w-full px-5 py-3 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100">
-                    Batalkan Pesanan
-                </a>
+                    <a
+                        href="{{ url('/dashboard') }}"
+                        class="mt-3 block w-full rounded-xl bg-slate-100 px-5 py-3 text-center font-bold text-slate-700 hover:bg-slate-200">
+                        Kembali ke Dashboard
+                    </a>
 
+                @elseif ($isPaid)
+                    <div class="rounded-xl border border-green-200 bg-green-50 p-4">
+                        <p class="text-sm font-bold text-green-700">
+                            Pembayaran berhasil
+                        </p>
 
+                        <p class="mt-1 text-xs text-green-600">
+                            Pesanan sudah masuk ke freelancer.
+                        </p>
+                    </div>
 
-                @elseif ($pesanan->status_pesanan === 'menunggu_pembayaran' && optional($pesanan->pembayaran)->snap_token)
-                <button type="button"
-                    id="pay-button"
-                    class="w-full px-5 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700">
-                    Bayar Sekarang dengan Midtrans
-                </button>
+                    <a
+                        href="{{ url('/dashboard') }}"
+                        class="mt-3 block w-full rounded-xl bg-slate-100 px-5 py-3 text-center font-bold text-slate-700 hover:bg-slate-200">
+                        Kembali ke Dashboard
+                    </a>
 
-                @if (app()->environment('local'))
-                <form action="{{ route('customer.payment.simulate-success', $pesanan->id) }}"
-                    method="POST"
-                    class="mt-4">
-                    @csrf
-
-                    <button type="submit"
-                        onclick="return confirm('Simulasikan pembayaran berhasil? Fitur ini hanya untuk testing lokal.')"
-                        class="w-full px-5 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700">
-                        Skip Pembayaran / Simulasi Berhasil
-                    </button>
-                </form>
-                @endif
-
-                <form method="POST"
-                    action="{{ route('customer.payment.pay', $pesanan->id) }}"
-                    class="mt-3">
-                    @csrf
-
-                    <button type="submit"
-                        class="w-full px-5 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200">
-                        Buat Ulang Token Pembayaran
-                    </button>
-                </form>
-
-                <a href="{{ url('/dashboard') }}"
-                    class="block text-center mt-3 w-full px-5 py-3 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100">
-                    Batalkan Pesanan
-                </a>
                 @else
-                <div class="p-4 bg-green-50 border border-green-200 rounded-xl">
-                    <p class="text-sm font-bold text-green-700">
-                        Pembayaran berhasil
-                    </p>
-                    <p class="text-xs text-green-600 mt-1">
-                        Pesanan sudah masuk ke freelancer.
-                    </p>
-                </div>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-sm font-bold text-slate-700">
+                            Pembayaran tidak dapat dilanjutkan
+                        </p>
 
-                <a href="{{ url('/dashboard') }}"
-                    class="block text-center mt-3 w-full px-5 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200">
-                    Kembali ke Dashboard
-                </a>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Status pesanan saat ini:
+                            {{ str_replace('_', ' ', $pesanan->status_pesanan) }}.
+                        </p>
+                    </div>
+
+                    <a
+                        href="{{ url('/dashboard') }}"
+                        class="mt-3 block w-full rounded-xl bg-slate-100 px-5 py-3 text-center font-bold text-slate-700 hover:bg-slate-200">
+                        Kembali ke Dashboard
+                    </a>
                 @endif
             </div>
         </aside>
 
-        {{-- CENTER: PAYMENT --}}
-        <div class="lg:col-span-8 space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        {{-- INFORMASI PEMBAYARAN --}}
+        <div class="space-y-6 lg:col-span-8">
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                     <h2 class="font-bold text-slate-900">
                         Pembayaran Midtrans
                     </h2>
 
-                    <span class="px-3 py-1 bg-slate-900 text-white rounded text-xs font-bold">
-                        Sandbox
+                    <span class="rounded bg-slate-900 px-3 py-1 text-xs font-bold text-white">
+                        {{ $midtransIsProduction ? 'Production' : 'Sandbox' }}
                     </span>
                 </div>
 
                 <div class="p-8 text-center">
-                    <div class="w-64 h-64 mx-auto rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center">
-                        <div class="w-44 h-44 bg-white rounded-xl shadow-sm border border-slate-200 p-4 grid grid-cols-5 gap-1">
+                    {{-- ILUSTRASI PAYMENT --}}
+                    <div class="mx-auto flex h-64 w-64 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50">
+                        <div class="grid h-44 w-44 grid-cols-5 gap-1 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                             @for ($i = 1; $i <= 25; $i++)
-                                <div class="rounded-sm {{ in_array($i, [1,2,3,6,8,11,13,15,18,20,21,22,24,25]) ? 'bg-slate-900' : 'bg-slate-100' }}">
+                                <div
+                                    class="rounded-sm {{ in_array(
+                                        $i,
+                                        [1, 2, 3, 6, 8, 11, 13, 15, 18, 20, 21, 22, 24, 25],
+                                        true
+                                    )
+                                        ? 'bg-slate-900'
+                                        : 'bg-slate-100' }}">
+                                </div>
+                            @endfor
                         </div>
-                        @endfor
+                    </div>
+
+                    <h3 class="mt-6 text-xl font-bold text-slate-900">
+                        Bayar melalui Midtrans
+                    </h3>
+
+                    <p class="mx-auto mt-2 max-w-xl text-sm text-slate-500">
+                        Klik tombol Bayar Sekarang dengan Midtrans, kemudian pilih
+                        QRIS, e-wallet, Virtual Account, atau metode pembayaran lain
+                        yang tersedia pada popup Midtrans
+                        {{ $midtransIsProduction ? 'Production' : 'Sandbox' }}.
+                    </p>
+
+                    <div class="mx-auto mt-8 max-w-xl rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left">
+                        <h4 class="mb-3 font-bold text-slate-900">
+                            Cara Pembayaran
+                        </h4>
+
+                        <ol class="list-inside list-decimal space-y-2 text-sm text-slate-600">
+                            <li>
+                                Klik tombol
+                                <strong>Buat Pembayaran Midtrans</strong>.
+                            </li>
+
+                            <li>
+                                Setelah token dibuat, klik
+                                <strong>Bayar Sekarang dengan Midtrans</strong>.
+                            </li>
+
+                            <li>
+                                Pilih QRIS, e-wallet, Virtual Account, atau metode
+                                pembayaran lain.
+                            </li>
+
+                            <li>
+                                Selesaikan pembayaran mengikuti instruksi Midtrans.
+                            </li>
+
+                            <li>
+                                Status pembayaran akan diverifikasi langsung oleh
+                                server JasaKampus.
+                            </li>
+                        </ol>
                     </div>
                 </div>
+            </div>
 
-                <h3 class="text-xl font-bold text-slate-900 mt-6">
-                    Pindai untuk Bayar
-                </h3>
+            {{-- STATUS TRANSAKSI --}}
+            @php
+                $currentStep = 1;
 
-                <p class="text-sm text-slate-500 mt-2 max-w-xl mx-auto">
-                    Gunakan aplikasi mobile banking, e-wallet, atau aplikasi pembayaran yang mendukung QRIS.
-                    Pembayaran akan diproses melalui Midtrans Sandbox. Silakan klik tombol Bayar Sekarang dengan Midtrans setelah token pembayaran dibuat.
-                </p>
+                if ($isWaitingPayment) {
+                    $currentStep = 2;
+                }
 
-                <div class="mt-8 text-left max-w-xl mx-auto bg-slate-50 border border-slate-200 rounded-2xl p-5">
-                    <h4 class="font-bold text-slate-900 mb-3">
-                        Cara Pembayaran:
-                    </h4>
+                if (in_array(
+                    $pesanan->status_pesanan,
+                    [
+                        'dibayar',
+                        'diproses',
+                        'menunggu_approve',
+                        'revisi',
+                    ],
+                    true
+                )) {
+                    $currentStep = 3;
+                }
 
-                    <ol class="space-y-2 text-sm text-slate-600 list-decimal list-inside">
-                        <li>Klik tombol <b>Buat Pembayaran Midtrans</b>.</li>
-                        <li>Setelah token dibuat, klik tombol <b>Bayar Sekarang dengan Midtrans</b>.</li>
-                        <li>Pilih metode pembayaran Sandbox, misalnya QRIS, GoPay, atau Virtual Account.</li>
-                        <li>Selesaikan pembayaran sesuai instruksi Midtrans.</li>
-                        <li>Jika pembayaran berhasil, dana akan ditahan sementara oleh sistem escrow.</li>
-                    </ol>
+                if ($pesanan->status_pesanan === 'selesai') {
+                    $currentStep = 4;
+                }
+            @endphp
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+                <h2 class="mb-12 text-center text-2xl font-bold text-slate-900">
+                    Status Transaksi
+                </h2>
+
+                <div class="relative px-8">
+                    <div class="absolute left-16 right-16 top-7 h-1 rounded-full bg-slate-200">
+                    </div>
+
+                    <div
+                        class="absolute left-16 top-7 h-1 rounded-full bg-blue-600
+                        @if ($currentStep === 1)
+                            w-0
+                        @elseif ($currentStep === 2)
+                            w-[33%]
+                        @elseif ($currentStep === 3)
+                            w-[66%]
+                        @else
+                            right-16
+                        @endif">
+                    </div>
+
+                    <div class="relative grid grid-cols-4 gap-4">
+
+                        {{-- STEP 1 --}}
+                        <div class="text-center">
+                            <div
+                                class="mx-auto flex items-center justify-center rounded-full bg-blue-600 font-bold text-white shadow ring-8 ring-blue-100"
+                                style="width: 56px; height: 56px;">
+                                ✓
+                            </div>
+
+                            <p class="mt-5 text-sm font-bold text-blue-700 md:text-base">
+                                Pesanan Dibuat
+                            </p>
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                {{ $pesanan->created_at->format('d M Y, H:i') }}
+                            </p>
+                        </div>
+
+                        {{-- STEP 2 --}}
+                        <div class="text-center">
+                            <div
+                                class="mx-auto flex items-center justify-center rounded-full font-bold shadow ring-8
+                                {{ $currentStep >= 2
+                                    ? 'bg-blue-600 text-white ring-blue-100'
+                                    : 'bg-slate-100 text-slate-400 ring-slate-100' }}"
+                                style="width: 56px; height: 56px;">
+                                💳
+                            </div>
+
+                            <p
+                                class="mt-5 text-sm font-bold md:text-base
+                                {{ $currentStep >= 2
+                                    ? 'text-blue-700'
+                                    : 'text-slate-400' }}">
+                                Menunggu Pembayaran
+                            </p>
+
+                            <p class="mt-1 text-xs text-slate-500">
+                                Menunggu konfirmasi Midtrans
+                            </p>
+                        </div>
+
+                        {{-- STEP 3 --}}
+                        <div class="text-center">
+                            <div
+                                class="mx-auto flex items-center justify-center rounded-full font-bold shadow ring-8
+                                {{ $currentStep >= 3
+                                    ? 'bg-blue-600 text-white ring-blue-100'
+                                    : 'bg-slate-100 text-slate-400 ring-slate-100' }}"
+                                style="width: 56px; height: 56px;">
+                                ⚙
+                            </div>
+
+                            <p
+                                class="mt-5 text-sm font-bold md:text-base
+                                {{ $currentStep >= 3
+                                    ? 'text-blue-700'
+                                    : 'text-slate-400' }}">
+                                Diproses
+                            </p>
+
+                            <p class="mt-1 text-xs text-slate-400">
+                                Pengerjaan oleh freelancer
+                            </p>
+                        </div>
+
+                        {{-- STEP 4 --}}
+                        <div class="text-center">
+                            <div
+                                class="mx-auto flex items-center justify-center rounded-full font-bold shadow ring-8
+                                {{ $currentStep >= 4
+                                    ? 'bg-blue-600 text-white ring-blue-100'
+                                    : 'bg-slate-100 text-slate-400 ring-slate-100' }}"
+                                style="width: 56px; height: 56px;">
+                                ✓
+                            </div>
+
+                            <p
+                                class="mt-5 text-sm font-bold md:text-base
+                                {{ $currentStep >= 4
+                                    ? 'text-blue-700'
+                                    : 'text-slate-400' }}">
+                                Selesai
+                            </p>
+
+                            <p class="mt-1 text-xs text-slate-400">
+                                Pesanan diselesaikan
+                            </p>
+                        </div>
+
+                    </div>
                 </div>
             </div>
         </div>
-
-        {{-- STATUS TRANSAKSI --}}
-        @php
-        $currentStep = 2;
-
-        if (in_array($pesanan->status_pesanan, ['dibayar', 'diproses', 'menunggu_approve', 'revisi'])) {
-        $currentStep = 3;
-        }
-
-        if ($pesanan->status_pesanan === 'selesai') {
-        $currentStep = 4;
-        }
-        @endphp
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-            <h2 class="text-center text-2xl font-bold text-slate-900 mb-12">
-                Status Transaksi
-            </h2>
-
-            <div class="relative px-8">
-
-                {{-- Garis abu-abu --}}
-                <div class="absolute left-16 right-16 top-7 h-1 bg-slate-200 rounded-full"></div>
-
-                {{-- Garis biru aktif --}}
-                <div class="absolute left-16 top-7 h-1 bg-blue-600 rounded-full
-            @if ($currentStep === 1) w-0
-            @elseif ($currentStep === 2) w-[33%]
-            @elseif ($currentStep === 3) w-[66%]
-            @else right-16
-            @endif">
-                </div>
-
-                <div class="relative grid grid-cols-4 gap-4">
-
-                    {{-- STEP 1 --}}
-                    <div class="text-center">
-                        <div class="mx-auto flex items-center justify-center rounded-full bg-blue-600 text-white font-bold shadow ring-8 ring-blue-100"
-                            style="width:56px; height:56px;">
-                            ✓
-                        </div>
-
-                        <p class="text-sm md:text-base font-bold text-blue-700 mt-5">
-                            Pesanan Dibuat
-                        </p>
-
-                        <p class="text-xs text-slate-500 mt-1">
-                            {{ $pesanan->created_at->format('d M Y, H:i') }}
-                        </p>
-                    </div>
-
-                    {{-- STEP 2 --}}
-                    <div class="text-center">
-                        <div class="mx-auto flex items-center justify-center rounded-full font-bold shadow ring-8
-                    {{ $currentStep >= 2 ? 'bg-blue-600 text-white ring-blue-100' : 'bg-slate-100 text-slate-400 ring-slate-100' }}"
-                            style="width:56px; height:56px;">
-                            💳
-                        </div>
-
-                        <p class="text-sm md:text-base font-bold {{ $currentStep >= 2 ? 'text-blue-700' : 'text-slate-400' }} mt-5">
-                            Menunggu Pembayaran
-                        </p>
-
-                        <p class="text-xs text-slate-500 mt-1">
-                            Menunggu Konfirmasi QRIS
-                        </p>
-                    </div>
-
-                    {{-- STEP 3 --}}
-                    <div class="text-center">
-                        <div class="mx-auto flex items-center justify-center rounded-full font-bold shadow ring-8
-                    {{ $currentStep >= 3 ? 'bg-blue-600 text-white ring-blue-100' : 'bg-slate-100 text-slate-400 ring-slate-100' }}"
-                            style="width:56px; height:56px;">
-                            ⚙
-                        </div>
-
-                        <p class="text-sm md:text-base font-bold {{ $currentStep >= 3 ? 'text-blue-700' : 'text-slate-400' }} mt-5">
-                            Verifikasi
-                        </p>
-
-                        <p class="text-xs text-slate-400 mt-1">
-                            Otomatis oleh sistem
-                        </p>
-                    </div>
-
-                    {{-- STEP 4 --}}
-                    <div class="text-center">
-                        <div class="mx-auto flex items-center justify-center rounded-full font-bold shadow ring-8
-                    {{ $currentStep >= 4 ? 'bg-blue-600 text-white ring-blue-100' : 'bg-slate-100 text-slate-400 ring-slate-100' }}"
-                            style="width:56px; height:56px;">
-                            ✓
-                        </div>
-
-                        <p class="text-sm md:text-base font-bold {{ $currentStep >= 4 ? 'text-blue-700' : 'text-slate-400' }} mt-5">
-                            Selesai
-                        </p>
-
-                        <p class="text-xs text-slate-400 mt-1">
-                            Proyek dimulai
-                        </p>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-
+    </div>
 </section>
 @endsection
 
 @push('scripts')
-@if ($pesanan->status_pesanan === 'menunggu_pembayaran' && optional($pesanan->pembayaran)->snap_token)
-@php
-$midtransIsProduction = filter_var(config('services.midtrans.is_production'), FILTER_VALIDATE_BOOLEAN);
-@endphp
+@if ($isWaitingPayment && optional($payment)->snap_token)
+    <script
+        src="{{ $midtransIsProduction
+            ? 'https://app.midtrans.com/snap/snap.js'
+            : 'https://app.sandbox.midtrans.com/snap/snap.js' }}"
+        data-client-key="{{ config('services.midtrans.client_key') }}">
+    </script>
 
-<script src="{{ $midtransIsProduction ? 'https://app.midtrans.com/snap/snap.js' : 'https://app.sandbox.midtrans.com/snap/snap.js' }}"
-    data-client-key="{{ config('services.midtrans.client_key') }}"></script>
-<script>
-    const payButton = document.getElementById('pay-button');
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const payButton =
+                document.getElementById('pay-button');
 
-    if (payButton) {
-        payButton.addEventListener('click', function() {
-            window.snap.pay('{{ $pesanan->pembayaran->snap_token }}', {
-                onSuccess: function(result) {
-                    fetch('{{ url(' / customer / order / ' . $pesanan->id . ' / payment / finish ') }}', {
+            if (!payButton) {
+                return;
+            }
+
+            const snapToken =
+                @json($payment->snap_token);
+
+            const finishUrl =
+                @json(route(
+                    'customer.payment.finish',
+                    $pesanan
+                ));
+
+            const showUrl =
+                @json(route(
+                    'customer.payment.show',
+                    $pesanan
+                ));
+
+            const csrfToken =
+                @json(csrf_token());
+
+            async function refreshPaymentStatus() {
+                try {
+                    const response = await fetch(
+                        finishUrl,
+                        {
                             method: 'POST',
+                            credentials: 'same-origin',
+
                             headers: {
+                                'Accept': 'application/json',
                                 'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
+                                'X-CSRF-TOKEN': csrfToken
                             },
-                            body: JSON.stringify(result)
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            window.location.href = '{{ url(' / customer / order / ' . $pesanan->id . ' / payment ') }}';
-                        });
-                },
-                onPending: function(result) {
-                    alert('Pembayaran masih pending. Silakan selesaikan pembayaran.');
-                    window.location.reload();
-                },
-                onError: function(result) {
-                    alert('Pembayaran gagal. Silakan coba lagi.');
-                },
-                onClose: function() {
-                    alert('Popup pembayaran ditutup sebelum selesai.');
+
+                            /*
+                             * Browser tidak mengirim
+                             * status pembayaran.
+                             *
+                             * Backend memeriksa status
+                             * langsung ke Midtrans.
+                             */
+                            body: JSON.stringify({})
+                        }
+                    );
+
+                    const contentType =
+                        response.headers.get(
+                            'content-type'
+                        ) || '';
+
+                    const data =
+                        contentType.includes(
+                            'application/json'
+                        )
+                            ? await response.json()
+                            : {};
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.message ||
+                            'Status pembayaran belum dapat diverifikasi.'
+                        );
+                    }
+
+                    return data;
+                } catch (error) {
+                    console.error(
+                        'Gagal memperbarui status pembayaran:',
+                        error
+                    );
+
+                    return null;
                 }
-            });
+            }
+
+            async function refreshAndRedirect() {
+                await refreshPaymentStatus();
+
+                window.location.href =
+                    showUrl;
+            }
+
+            payButton.addEventListener(
+                'click',
+                function () {
+                    if (
+                        typeof window.snap === 'undefined' ||
+                        typeof window.snap.pay !== 'function'
+                    ) {
+                        alert(
+                            'Midtrans belum berhasil dimuat. Muat ulang halaman dan coba kembali.'
+                        );
+
+                        return;
+                    }
+
+                    payButton.disabled = true;
+                    payButton.textContent =
+                        'Membuka Midtrans...';
+
+                    window.snap.pay(
+                        snapToken,
+                        {
+                            onSuccess:
+                                async function () {
+                                    await refreshAndRedirect();
+                                },
+
+                            onPending:
+                                async function () {
+                                    await refreshAndRedirect();
+                                },
+
+                            onError:
+                                async function () {
+                                    await refreshAndRedirect();
+                                },
+
+                            onClose:
+                                function () {
+                                    payButton.disabled =
+                                        false;
+
+                                    payButton.textContent =
+                                        'Bayar Sekarang dengan Midtrans';
+                                }
+                        }
+                    );
+                }
+            );
         });
-    }
-</script>
+    </script>
 @endif
 
 <script>
-    const countdown = document.getElementById('payment-countdown');
+    document.addEventListener('DOMContentLoaded', function () {
+        const countdown =
+            document.getElementById(
+                'payment-countdown'
+            );
 
-    if (countdown) {
-        let totalSeconds = 24 * 60 * 60 - 6;
+        if (!countdown) {
+            return;
+        }
 
-        setInterval(() => {
-            totalSeconds--;
+        const expiresAtValue =
+            countdown.dataset.expiresAt;
 
-            const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-            const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-            const seconds = String(totalSeconds % 60).padStart(2, '0');
+        if (!expiresAtValue) {
+            countdown.textContent =
+                '--:--:--';
 
-            countdown.textContent = `${hours}:${minutes}:${seconds}`;
-        }, 1000);
-    }
+            return;
+        }
+
+        const expiresAt =
+            new Date(expiresAtValue).getTime();
+
+        if (Number.isNaN(expiresAt)) {
+            countdown.textContent =
+                '--:--:--';
+
+            return;
+        }
+
+        function updateCountdown() {
+            const remaining =
+                expiresAt - Date.now();
+
+            if (remaining <= 0) {
+                countdown.textContent =
+                    '00:00:00';
+
+                const payButton =
+                    document.getElementById(
+                        'pay-button'
+                    );
+
+                if (payButton) {
+                    payButton.disabled = true;
+                    payButton.textContent =
+                        'Waktu Pembayaran Habis';
+                }
+
+                return false;
+            }
+
+            const totalSeconds =
+                Math.floor(remaining / 1000);
+
+            const hours = String(
+                Math.floor(totalSeconds / 3600)
+            ).padStart(2, '0');
+
+            const minutes = String(
+                Math.floor(
+                    (totalSeconds % 3600) / 60
+                )
+            ).padStart(2, '0');
+
+            const seconds = String(
+                totalSeconds % 60
+            ).padStart(2, '0');
+
+            countdown.textContent =
+                `${hours}:${minutes}:${seconds}`;
+
+            return true;
+        }
+
+        updateCountdown();
+
+        const timer = setInterval(
+            function () {
+                if (!updateCountdown()) {
+                    clearInterval(timer);
+                }
+            },
+            1000
+        );
+    });
 </script>
 @endpush

@@ -13,6 +13,9 @@ use Illuminate\View\View;
 use Midtrans\Config;
 use Midtrans\Notification;
 use Midtrans\Snap;
+use Illuminate\Support\Facades\Log;
+use Midtrans\Transaction;
+use Throwable;
 
 
 class PaymentController extends Controller
@@ -119,31 +122,125 @@ class PaymentController extends Controller
             ->with('success', 'Silakan lanjutkan pembayaran melalui Midtrans.');
     }
 
-    public function finish(Request $request, Pesanan $pesanan): JsonResponse
-    {
+    public function finish(
+        Request $request,
+        Pesanan $pesanan
+    ): JsonResponse {
         $this->authorizeCustomer($request, $pesanan);
 
         $pesanan->load('pembayaran');
 
-        abort_if(! $pesanan->pembayaran, 404, 'Data pembayaran tidak ditemukan.');
+        $pembayaran = $pesanan->pembayaran;
 
-        $transactionStatus = $request->input('transaction_status', 'settlement');
+        abort_if(
+            ! $pembayaran,
+            404,
+            'Data pembayaran tidak ditemukan.'
+        );
 
-        $pesanan->pembayaran->update([
-            'transaction_id' => $request->input('transaction_id'),
-            'payment_type' => $request->input('payment_type', 'midtrans'),
-            'transaction_status' => $transactionStatus,
-            'fraud_status' => $request->input('fraud_status'),
-        ]);
+        $this->setupMidtrans();
 
-        if (in_array($transactionStatus, ['settlement', 'capture'])) {
-            $this->markAsPaid($pesanan);
+        try {
+            /*
+         * Status tidak diambil dari data JavaScript/browser.
+         * Server meminta status langsung kepada Midtrans.
+         */
+            $status = Transaction::status(
+                $pembayaran->order_id
+            );
+
+            $receivedOrderId = (string) (
+                $status->order_id ?? ''
+            );
+
+            $receivedAmount = (int) round(
+                (float) ($status->gross_amount ?? 0)
+            );
+
+            $expectedAmount = (int) round(
+                (float) $pembayaran->gross_amount
+            );
+
+            /*
+         * Pastikan transaksi Midtrans benar-benar
+         * milik pembayaran yang sedang diproses.
+         */
+            if (
+                $receivedOrderId !==
+                (string) $pembayaran->order_id ||
+                $receivedAmount !== $expectedAmount
+            ) {
+                throw new \RuntimeException(
+                    'Data transaksi Midtrans tidak cocok dengan pembayaran lokal.'
+                );
+            }
+
+            $transactionStatus = (string) (
+                $status->transaction_status ?? 'pending'
+            );
+
+            $fraudStatus = isset($status->fraud_status)
+                ? (string) $status->fraud_status
+                : null;
+
+            $pembayaran->update([
+                'transaction_id' =>
+                $status->transaction_id ??
+                    $pembayaran->transaction_id,
+
+                'payment_type' =>
+                $status->payment_type ??
+                    $pembayaran->payment_type,
+
+                'transaction_status' =>
+                $transactionStatus,
+
+                'fraud_status' =>
+                $fraudStatus,
+            ]);
+
+            $paymentSuccessful =
+                $transactionStatus === 'settlement' ||
+                (
+                    $transactionStatus === 'capture' &&
+                    $fraudStatus === 'accept'
+                );
+
+            if ($paymentSuccessful) {
+                $this->markAsPaid($pesanan);
+            }
+
+            return response()->json([
+                'success' => true,
+                'payment_confirmed' =>
+                $paymentSuccessful,
+
+                'transaction_status' =>
+                $transactionStatus,
+
+                'message' => $paymentSuccessful
+                    ? 'Pembayaran berhasil diverifikasi.'
+                    : 'Pembayaran belum selesai atau masih diproses.',
+            ]);
+        } catch (Throwable $exception) {
+            Log::error(
+                'Gagal memverifikasi pembayaran Midtrans.',
+                [
+                    'pesanan_id' => $pesanan->id,
+                    'order_id' => $pembayaran->order_id,
+                    'message' => $exception->getMessage(),
+                ]
+            );
+
+            return response()->json(
+                [
+                    'success' => false,
+                    'message' =>
+                    'Status pembayaran belum dapat diverifikasi. Silakan periksa kembali beberapa saat lagi.',
+                ],
+                502
+            );
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Status pembayaran berhasil diperbarui.',
-        ]);
     }
 
     public function notification(Request $request): JsonResponse
@@ -204,10 +301,11 @@ class PaymentController extends Controller
         }
 
         $pesanan->pembayaran->update([
-            'transaction_status' => 'settlement',
-            'fraud_status' => 'accept',
             'status_escrow' => 'ditahan',
-            'tanggal_bayar' => now(),
+
+            'tanggal_bayar' =>
+            $pesanan->pembayaran->tanggal_bayar
+                ?? now(),
         ]);
 
         $pesanan->update([
