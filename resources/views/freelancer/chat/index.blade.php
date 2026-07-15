@@ -78,5 +78,4 @@
     </div>
     @endif
 </div>
-<x-auto-refresh :seconds="10" />
 @endsection
