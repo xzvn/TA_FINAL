@@ -37,7 +37,9 @@
             Informasi Akun
         </h2>
 
-        <form action="{{ route('freelancer.profile.update') }}"
+        <form
+            id="freelancer-profile-form"
+            action="{{ route('freelancer.profile.update') }}"
             method="POST"
             enctype="multipart/form-data"
             class="space-y-6">
@@ -140,13 +142,16 @@
                     Kembali
                 </a>
 
-                <button type="submit"
+                <button
+                    id="save-profile-button"
+                    type="submit"
+                    form="freelancer-profile-form"
                     class="px-5 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700">
                     Simpan Perubahan
                 </button>
-                
+
             </div>
-            
+
         </form>
     </div>
 
