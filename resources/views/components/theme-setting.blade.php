@@ -1,40 +1,78 @@
 @php
-$currentTheme = auth()->user()->theme ?? 'light';
+$currentTheme = old(
+'theme',
+auth()->user()->theme ?? 'light'
+);
 @endphp
 
-<div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 theme-card">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+<div class="rounded-2xl border border-slate-200 bg-white p-6">
+    <div class="grid gap-6 md:grid-cols-2 md:items-center">
+
         <div>
-            <h2 class="text-lg font-bold text-slate-900 theme-text">
+            <h3 class="text-xl font-bold text-slate-900">
                 Tema Tampilan
-            </h2>
-            <p class="text-sm text-slate-500 theme-muted mt-1">
+            </h3>
+
+            <p class="mt-2 text-sm text-slate-500">
                 Pilih tema terang atau gelap untuk tampilan akun kamu.
             </p>
         </div>
 
-        <form method="POST" action="{{ route('theme.update') }}" class="flex gap-3">
-            @csrf
+        <div class="flex flex-wrap gap-4 md:justify-end">
 
-            <button type="submit"
-                name="theme"
-                value="light"
-                class="px-5 py-3 rounded-xl text-sm font-bold border transition
-                {{ $currentTheme === 'light'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50' }}">
-                ☀️ Terang
-            </button>
+            <label
+                for="theme-light"
+                class="cursor-pointer">
 
-            <button type="submit"
-                name="theme"
-                value="dark"
-                class="px-5 py-3 rounded-xl text-sm font-bold border transition
-                {{ $currentTheme === 'dark'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50' }}">
-                🌙 Gelap
-            </button>
-        </form>
+                <input
+                    id="theme-light"
+                    type="radio"
+                    name="theme"
+                    value="light"
+                    class="peer sr-only"
+                    {{ $currentTheme === 'light'
+                        ? 'checked'
+                        : '' }}>
+
+                <span
+                    class="inline-flex min-w-40 items-center justify-center rounded-xl border border-slate-300 bg-white px-7 py-4 font-bold text-slate-800 transition
+                    hover:border-blue-400 hover:bg-blue-50
+                    peer-checked:border-blue-600
+                    peer-checked:bg-blue-600
+                    peer-checked:text-white
+                    peer-focus-visible:ring-4
+                    peer-focus-visible:ring-blue-200">
+
+                    ☀️&nbsp; Terang
+                </span>
+            </label>
+
+            <label
+                for="theme-dark"
+                class="cursor-pointer">
+
+                <input
+                    id="theme-dark"
+                    type="radio"
+                    name="theme"
+                    value="dark"
+                    class="peer sr-only"
+                    {{ $currentTheme === 'dark'
+                        ? 'checked'
+                        : '' }}>
+
+                <span
+                    class="inline-flex min-w-40 items-center justify-center rounded-xl border border-slate-300 bg-white px-7 py-4 font-bold text-slate-800 transition
+                    hover:border-blue-400 hover:bg-blue-50
+                    peer-checked:border-blue-600
+                    peer-checked:bg-blue-600
+                    peer-checked:text-white
+                    peer-focus-visible:ring-4
+                    peer-focus-visible:ring-blue-200">
+
+                    🌙&nbsp; Gelap
+                </span>
+            </label>
+        </div>
     </div>
 </div>
